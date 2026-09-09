@@ -59,30 +59,19 @@ PRSC instead asks three questions first:
 
 PRSC audits a reproduction in roughly this order:
 
-```text
-README / official instructions
-        ↓
-Relevant source code
-        ↓
-Repository state
-        ↓
-Conda environment
-        ↓
-Dataset / preprocessing
-        ↓
-GPU / running processes
-        ↓
-Logs
-        ↓
-Checkpoints / resume support
-        ↓
-Rendering
-        ↓
-Evaluation
-        ↓
-Per-scene reproduction state
-        ↓
-Minimum safe next action
+```mermaid
+flowchart TD
+    A[README / official instructions] --> B[Relevant source code]
+    B --> C[Repository state]
+    C --> D[Conda environment]
+    D --> E[Dataset / preprocessing]
+    E --> F[GPU / running processes]
+    F --> G[Logs]
+    G --> H[Checkpoints / resume support]
+    H --> I[Rendering]
+    I --> J[Evaluation]
+    J --> K[Per-scene reproduction state]
+    K --> L[Minimum safe next action]
 ```
 
 The README is not treated as the only source of truth. PRSC also inspects the implementation that actually controls training, dataset loading, checkpointing, rendering, and evaluation.
@@ -142,6 +131,8 @@ The repository contains a standards-oriented skill package under `paper-reproduc
 ```text
 PRSC-Paper-Reproduction-Safety-Check/
 ├── README.md
+├── CHANGELOG.md
+├── RELEASE_NOTES_v0.1.0.md
 ├── LICENSE
 ├── .gitignore
 ├── examples/
@@ -367,13 +358,13 @@ Before declaring a full quantitative reproduction complete:
 
 ## Release Status
 
-Current skill metadata version:
+Current project version:
 
 ```text
 0.1.0
 ```
 
-The project is suitable for early public use and feedback. Repository releases can be tagged independently as the workflow evolves.
+See [`CHANGELOG.md`](CHANGELOG.md) for version history and [`RELEASE_NOTES_v0.1.0.md`](RELEASE_NOTES_v0.1.0.md) for the initial release summary.
 
 ---
 
