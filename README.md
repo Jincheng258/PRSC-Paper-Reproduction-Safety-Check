@@ -1,40 +1,41 @@
-# Paper Reproduction Safety Check
+# PRSC — Paper Reproduction Safety Check
 
-> A reusable safety-first workflow for auditing and continuing research code reproductions without blindly reinstalling environments, modifying code, or restarting experiments.
+> A reusable safety-first workflow for auditing and continuing research-code reproductions without blindly reinstalling environments, modifying source code, deleting evidence, or restarting experiments.
 
-`paper-reproduction-safety-check` is a reusable AI Skill designed for reproducing research codebases, especially projects involving:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](#release-status)
 
-* 3D Gaussian Splatting
-* 4D / Dynamic Gaussian Splatting
-* NeRF
-* Computer Vision
-* Computer Graphics
-* Robotics
-* Deep Learning research repositories
+`paper-reproduction-safety-check` is an Agent Skill for research-code reproduction workflows, especially projects involving:
 
-Its core principle is simple:
+- 3D Gaussian Splatting
+- 4D / Dynamic Gaussian Splatting
+- NeRF
+- Computer Vision
+- Computer Graphics
+- Robotics
+- Deep Learning research repositories
+
+Its core principle is:
 
 > **Inspect first. Understand second. Execute last.**
 
 ---
 
-## Why?
+## Why PRSC?
 
-When reproducing a research paper, the server is rarely in a clean state.
+A research server is rarely in a clean state. It may already contain:
 
-You may already have:
+- Conda environments
+- downloaded or preprocessed datasets
+- partially completed training
+- checkpoints
+- rendered results
+- evaluation metrics
+- modified configurations
+- active GPU jobs
+- failed experiments and useful logs
 
-* Conda environments
-* downloaded datasets
-* partially completed training
-* checkpoints
-* rendered results
-* evaluation metrics
-* modified configurations
-* running GPU jobs
-* failed experiments and useful logs
-
-A naive assistant may immediately suggest:
+A naive reproduction workflow may immediately suggest:
 
 ```bash
 conda create ...
@@ -42,305 +43,156 @@ pip install ...
 python train.py ...
 ```
 
-This can cause:
+That can cause duplicated environments, broken dependencies, overwritten experiments, unnecessary retraining, GPU conflicts, incorrect dataset settings, or loss of debugging evidence.
 
-* duplicated environments
-* broken dependencies
-* overwritten experiments
-* unnecessary retraining
-* GPU conflicts
-* incorrect dataset configurations
-* lost debugging evidence
+PRSC instead asks three questions first:
 
-This Skill therefore **audits the current state before taking action**.
+```text
+1. What does the repository actually require?
+2. What has already been completed on this machine?
+3. What is the minimum safe next action?
+```
 
 ---
 
-# What It Does
+## What It Does
 
-The Skill checks the reproduction pipeline in the following order:
+PRSC audits a reproduction in roughly this order:
 
 ```text
-README
-   ↓
-Relevant Source Code
-   ↓
-Conda Environment
-   ↓
-Dataset
-   ↓
-GPU / Running Processes
-   ↓
+README / official instructions
+        ↓
+Relevant source code
+        ↓
+Repository state
+        ↓
+Conda environment
+        ↓
+Dataset / preprocessing
+        ↓
+GPU / running processes
+        ↓
 Logs
-   ↓
-Checkpoints
-   ↓
+        ↓
+Checkpoints / resume support
+        ↓
 Rendering
-   ↓
+        ↓
 Evaluation
-   ↓
-Current Reproduction State
-   ↓
-Minimum Safe Next Action
+        ↓
+Per-scene reproduction state
+        ↓
+Minimum safe next action
 ```
+
+The README is not treated as the only source of truth. PRSC also inspects the implementation that actually controls training, dataset loading, checkpointing, rendering, and evaluation.
 
 ---
 
-# Key Features
+## Key Safety Rules
 
-## Source-code-aware
+PRSC is designed around a few strict defaults:
 
-The README is not treated as the only source of truth.
+- **Reuse existing environments first.** Start with `conda env list` and inspect compatibility before creating another environment.
+- **Preserve old results and local modifications.** Do not casually run destructive commands such as `rm -rf`, `git reset --hard`, or `git clean -fd`.
+- **Do not restart just because training stopped.** Inspect checkpoints and resume support first.
+- **A checkpoint is not automatically a finished experiment.** Compare it with the official target iteration or epoch.
+- **Training completion is not automatically full reproduction.** Verify render and evaluation when they are part of the target pipeline.
+- **Diagnose before patching.** Check command, working directory, environment, dependencies, data, config, checkpoint, and GPU state before modifying source code.
+- **Isolate batch failures.** One scene should not terminate unrelated scenes by default.
 
-The Skill also inspects relevant implementation files such as:
+---
+
+## Reproduction States
+
+PRSC uses explicit evidence-based states such as:
+
+| State | Meaning |
+| --- | --- |
+| `NOT_STARTED` | Target experiment has not started |
+| `ENV_ERROR` | Environment or dependency problem |
+| `DATA_ERROR` | Dataset or preprocessing problem |
+| `TRAINING` | Training is currently active |
+| `TRAIN_INTERRUPTED` | Training stopped before the target |
+| `TRAIN_FINISHED` | Target training finished, downstream work may remain |
+| `RENDER_FINISHED` | Rendering finished |
+| `EVAL_FINISHED` | Evaluation finished |
+| `COMPLETE` | The user's requested reproduction target is fully verified |
+| `FAILED` | A confirmed failure blocks the current stage |
+| `UNKNOWN` | Evidence is insufficient |
+
+For multi-scene experiments, PRSC reports state per scene rather than collapsing everything into a vague global answer.
+
+Example:
 
 ```text
-train.py
-render.py
-eval.py
-arguments/
-configs/
-scene/
-dataset loaders
-checkpoint logic
+scene                 train          render   eval   status
+---------------------------------------------------------------
+coffee_martini        30000/30000    YES      YES    COMPLETE
+cook_spinach          30000/30000    NO       NO     TRAIN_FINISHED
+cut_roasted_beef      12000/30000    NO       NO     TRAIN_INTERRUPTED
 ```
-
-This helps detect situations where documentation and actual implementation differ.
 
 ---
 
-## Environment reuse first
+## Repository Structure
 
-The first environment check is normally:
+The repository contains a standards-oriented skill package under `paper-reproduction-safety-check/`:
+
+```text
+PRSC-Paper-Reproduction-Safety-Check/
+├── README.md
+├── LICENSE
+├── .gitignore
+├── examples/
+│   ├── 3dgs-reproduction-check.md
+│   └── batch-safe-run.sh
+└── paper-reproduction-safety-check/
+    ├── SKILL.md
+    ├── references/
+    │   ├── reproduction-audit.md
+    │   ├── debugging-policy.md
+    │   └── 3dgs-reproduction-check.md
+    └── scripts/
+        └── batch-safe-run.sh
+```
+
+The skill package uses progressive disclosure:
+
+- `SKILL.md` contains the core behavior and safety policy.
+- `references/` contains detailed audit, debugging, and end-to-end material.
+- `scripts/` contains reusable execution patterns.
+
+This keeps the core skill concise while preserving detailed guidance when needed.
+
+---
+
+## Installation
+
+Clone the repository:
 
 ```bash
-conda env list
+git clone https://github.com/Jincheng258/PRSC-Paper-Reproduction-Safety-Check.git
+cd PRSC-Paper-Reproduction-Safety-Check
 ```
 
-The Skill prefers:
+The installable skill directory is:
 
 ```text
-Reuse existing environment
+paper-reproduction-safety-check/
 ```
 
-over:
+For an Agent Skills-compatible client or agent runtime, add or import that directory as a skill according to the client's skill-loading mechanism.
+
+The skill manifest is:
 
 ```text
-Create another environment
-```
-
-unless there is clear evidence that the existing environment is incompatible.
-
----
-
-## Reproduction-state auditing
-
-Instead of simply answering:
-
-```text
-"The experiment looks finished."
-```
-
-the Skill attempts to determine an explicit state:
-
-| State               | Meaning                            |
-| ------------------- | ---------------------------------- |
-| `NOT_STARTED`       | Training has not started           |
-| `ENV_ERROR`         | Environment problem                |
-| `DATA_ERROR`        | Dataset problem                    |
-| `TRAINING`          | Training is currently running      |
-| `TRAIN_INTERRUPTED` | Training stopped before completion |
-| `TRAIN_FINISHED`    | Training finished                  |
-| `RENDER_FINISHED`   | Rendering finished                 |
-| `EVAL_FINISHED`     | Evaluation finished                |
-| `COMPLETE`          | Full target pipeline completed     |
-| `UNKNOWN`           | Insufficient evidence              |
-
----
-
-## Checkpoint-aware
-
-A checkpoint existing does not necessarily mean training has completed.
-
-For example:
-
-```text
-iteration_12000
-```
-
-does not mean the experiment is complete if the official target is:
-
-```text
-iteration_30000
-```
-
-The Skill verifies the expected training target before deciding the state.
-
----
-
-## Render and evaluation verification
-
-Training completion is not automatically considered a complete reproduction.
-
-The Skill continues checking:
-
-```text
-Training
-   ↓
-Rendering
-   ↓
-Evaluation
-```
-
-including metrics such as:
-
-```text
-PSNR
-SSIM
-LPIPS
-FPS
-Storage
-Training Time
-```
-
-depending on the repository.
-
----
-
-# Safe Batch Execution
-
-Research experiments often involve multiple scenes.
-
-A single failed scene should normally **not terminate the entire batch**.
-
-Avoid:
-
-```bash
-set -e
-```
-
-and avoid unconditional:
-
-```bash
-exit
-```
-
-inside multi-scene experiment scripts.
-
-A safer pattern is:
-
-```bash
-SCENES=(
-    coffee_martini
-    cook_spinach
-    cut_roasted_beef
-    flame_salmon_1
-    flame_steak
-    sear_steak
-)
-
-mkdir -p logs
-
-for scene in "${SCENES[@]}"; do
-
-    echo
-    echo "============================================================"
-    echo "START: $scene"
-    echo "============================================================"
-
-    python train.py \
-        -s "/dataset/dynerf/$scene" \
-        -m "output/$scene" \
-        2>&1 | tee "logs/${scene}.log"
-
-    status=${PIPESTATUS[0]}
-
-    if [ "$status" -ne 0 ]; then
-        echo "FAILED: $scene"
-        echo "EXIT CODE: $status"
-        continue
-    fi
-
-    echo "SUCCESS: $scene"
-
-done
-
-echo "============================================================"
-echo "BATCH FINISHED"
-echo "============================================================"
-```
-
-This makes long-running jobs more suitable for `tmux`.
-
----
-
-# Example
-
-A realistic request might be:
-
-```text
-I am reproducing this repository:
-
-https://github.com/example-lab/DynamicGaussian
-
-Repository:
-/data/6001_project/DynamicGaussian
-
-Dataset:
-/dataset/dynerf
-
-Preferred GPU:
-GPU 4
-
-I worked on this experiment before but no longer remember
-which scenes are finished.
-
-First inspect the README and relevant source code.
-
-Then determine the current status of:
-- Conda environment
-- dataset
-- GPU
-- running processes
-- logs
-- checkpoints
-- rendering
-- evaluation
-
-Do not reinstall the environment, modify source code, or restart
-training before checking the existing state.
-
-If experiments still need to run, provide a tmux-friendly batch
-script where one failed scene does not terminate the remaining jobs.
-```
-
-The expected behavior is:
-
-```text
-Inspect
-   ↓
-Collect evidence
-   ↓
-Determine current state
-   ↓
-Explain missing stages
-   ↓
-Provide minimum safe next action
-```
-
-rather than immediately launching training.
-
-A full end-to-end example can be placed in:
-
-```text
-examples/3dgs-reproduction-check.md
+paper-reproduction-safety-check/SKILL.md
 ```
 
 ---
 
-# Recommended Prompt
-
-You can use the following template:
+## Example Prompt
 
 ```text
 Use the paper-reproduction-safety-check workflow for this repository.
@@ -361,12 +213,11 @@ Preferred GPU:
 <GPU index>
 
 Requirements:
-
 1. Read the README and relevant source code first.
 2. Determine how far the current reproduction has progressed.
-3. Run `conda env list` and prefer existing environments.
-4. Check dataset, dependencies, GPU, processes, logs,
-   checkpoints, rendering, and evaluation.
+3. Check `conda env list` and prefer existing environments.
+4. Check dataset, preprocessing, dependencies, GPU, processes,
+   logs, checkpoints, rendering, and evaluation.
 5. Do not blindly reinstall dependencies.
 6. Do not blindly modify source code.
 7. Do not blindly restart full training.
@@ -384,32 +235,73 @@ Requirements:
 
 ---
 
-# Recommended Repository Structure
+## Safe Batch Execution
+
+A failed scene should normally not terminate the entire batch.
+
+The reusable example is available at:
 
 ```text
-paper-reproduction-safety-check/
-│
-├── README.md
-├── SKILL.md
-├── LICENSE
-├── .gitignore
-│
-└── examples/
-    ├── 3dgs-reproduction-check.md
-    └── batch-safe-run.sh
+paper-reproduction-safety-check/scripts/batch-safe-run.sh
 ```
+
+The key pattern is:
+
+```bash
+python train.py ... 2>&1 | tee "$SCENE_LOG"
+status=${PIPESTATUS[0]}
+
+if [ "$status" -ne 0 ]; then
+    echo "FAILED: $scene"
+    continue
+fi
+```
+
+This preserves logs, captures the actual training command's exit status, and allows unrelated scenes to continue.
+
+Do not default to `set -e` or batch-level `exit` for independent multi-scene experiments.
 
 ---
 
-# What This Skill Avoids
+## End-to-End Example
+
+A realistic dynamic Gaussian / DyNeRF walkthrough is included here:
+
+```text
+paper-reproduction-safety-check/references/3dgs-reproduction-check.md
+```
+
+It demonstrates the full flow:
+
+```text
+repository inspection
+        ↓
+environment validation
+        ↓
+dataset validation
+        ↓
+checkpoint + log audit
+        ↓
+render / evaluation audit
+        ↓
+per-scene status table
+        ↓
+minimum safe continuation plan
+```
+
+The example intentionally shows mixed states: completed scenes, interrupted training, missing render/eval, a locally modified config, and a failed config-path run.
+
+---
+
+## What PRSC Avoids
 
 ```text
 ✗ Blind pip install
 ✗ Blind conda create
 ✗ Blind git pull
-✗ Blind code patching
+✗ Blind source patching
 ✗ Blind retraining
-✗ Deleting previous results
+✗ Deleting previous experiment evidence
 ✗ Occupying arbitrary GPUs
 ✗ Assuming README is always correct
 ✗ Treating any checkpoint as completed training
@@ -418,9 +310,9 @@ paper-reproduction-safety-check/
 
 ---
 
-# Intended Role
+## Intended Role
 
-The Skill is designed to make an AI assistant behave less like a:
+PRSC is designed to make an AI research assistant behave less like a:
 
 ```text
 Command Generator
@@ -440,51 +332,59 @@ Reproduction Planner
 
 ---
 
-# Reproduction Checklist
+## Reproduction Checklist
 
-Before running experiments:
+Before major execution:
 
 ```text
 [ ] README inspected
 [ ] relevant source code inspected
+[ ] repository state inspected
 [ ] Conda environments inspected
-[ ] existing environment evaluated
+[ ] candidate environment validated
 [ ] dataset checked
+[ ] preprocessing checked
 [ ] GPU checked
-[ ] running processes checked
+[ ] matching processes checked
 [ ] logs checked
 [ ] checkpoints checked
+[ ] resume behavior checked if needed
 ```
 
-Before declaring success:
+Before declaring a full quantitative reproduction complete:
 
 ```text
-[ ] target training iteration reached
+[ ] target training iteration/epoch reached
 [ ] checkpoint verified
 [ ] rendering completed
-[ ] render output verified
-[ ] evaluation completed
+[ ] render output count checked
+[ ] official evaluation completed
 [ ] metrics saved
-[ ] logs checked for hidden errors
+[ ] no unresolved fatal errors
 ```
 
-Only then:
+---
+
+## Release Status
+
+Current skill metadata version:
 
 ```text
-REPRODUCTION COMPLETE
+0.1.0
 ```
 
----
-
-# License
-
-MIT License is recommended for this project.
+The project is suitable for early public use and feedback. Repository releases can be tagged independently as the workflow evolves.
 
 ---
 
-# Philosophy
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## Philosophy
 
 > **Never restart a reproduction experiment before understanding its current state.**
 
 **Inspect first. Understand second. Execute last.**
-
