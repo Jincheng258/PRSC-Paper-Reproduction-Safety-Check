@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Paper Reproduction Safety Check
-# Safe multi-scene batch execution example.
+# Safe multi-scene batch execution pattern.
 #
 # Design goals:
 # - tmux friendly
@@ -9,6 +9,7 @@
 # - no `set -e`
 # - no batch-level `exit`
 # - one failed scene does not stop later scenes
+# - capture the real command status when piping through tee
 
 GPU_ID=4
 DATA_ROOT="/dataset/dynerf"
@@ -29,10 +30,10 @@ mkdir -p "$OUTPUT_ROOT" "$LOG_ROOT"
 echo "============================================================"
 echo "PAPER REPRODUCTION BATCH"
 echo "============================================================"
-echo "GPU:        $GPU_ID"
-echo "DATA:       $DATA_ROOT"
-echo "OUTPUT:     $OUTPUT_ROOT"
-echo "LOGS:       $LOG_ROOT"
+echo "GPU:    $GPU_ID"
+echo "DATA:   $DATA_ROOT"
+echo "OUTPUT: $OUTPUT_ROOT"
+echo "LOGS:   $LOG_ROOT"
 echo "============================================================"
 
 for scene in "${SCENES[@]}"; do
@@ -47,19 +48,18 @@ for scene in "${SCENES[@]}"; do
 
     if [ ! -d "$SCENE_DATA" ]; then
         echo "FAILED: $scene"
-        echo "REASON: dataset directory does not exist:"
-        echo "$SCENE_DATA"
+        echo "REASON: dataset directory does not exist"
+        echo "PATH: $SCENE_DATA"
         continue
     fi
 
     if [ -d "$SCENE_OUTPUT" ]; then
-        echo "NOTICE: existing output found:"
-        echo "$SCENE_OUTPUT"
+        echo "NOTICE: existing output found: $SCENE_OUTPUT"
         echo "The script will not delete it automatically."
     fi
 
-    # Replace the example arguments below with the repository's
-    # actual training arguments after inspecting its source code.
+    # Replace the example arguments below only after inspecting
+    # the target repository's actual training interface.
     CUDA_VISIBLE_DEVICES="$GPU_ID" \
     python train.py \
         -s "$SCENE_DATA" \
